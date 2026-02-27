@@ -1,0 +1,157 @@
+"use client";
+
+import { useState, useCallback, useRef, useEffect } from "react";
+import { streamChatMessage } from "@/lib/api";
+import type { ChatMessage } from "@/lib/types";
+import HeroHeader from "./HeroHeader";
+import ChatInput from "./ChatInput";
+import MessageList from "./MessageList";
+import PromptCard from "./PromptCard";
+
+const SUGGESTIONS = [
+  "David Fifita try scoring stats?",
+  "Nathan Cleary ATS since 2023?",
+  "Top 5 edge forwards for LTS since 2022 with minimum 30 games played since then and minimum 1 game played since 2024?",
+  "Is $17 for Payne Haas FTS value & how much?",
+];
+
+const ICONS = {
+  trophy: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M6 9H4.5a2.5 2.5 0 012.5-2.5V9zm0 0V6.5A2.5 2.5 0 108.5 9H6zm12 0h-2.5a2.5 2.5 0 012.5-2.5V9zm0 0V6.5a2.5 2.5 0 10-2.5 2.5H18zM4 22h16M8 22V17a4 4 0 018 0v5M12 6v4M10 8h4" />
+    </svg>
+  ),
+  bar: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 20V10M18 20V4M6 20v-4" />
+    </svg>
+  ),
+  people: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 108 0 4 4 0 00-8 0zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
+    </svg>
+  ),
+  trend: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M23 6l-9.5 9.5-5-5L1 18" />
+    </svg>
+  ),
+};
+
+export default function ChatShell() {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [streaming, setStreamingContent] = useState("");
+  const [loading, setLoading] = useState(false);
+  const listEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = useCallback(() => {
+    listEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, streaming, scrollToBottom]);
+
+  const sendMessage = useCallback(
+    (text: string) => {
+      const msg = text.trim();
+      if (!msg || loading) return;
+      setInput("");
+      const userMsg: ChatMessage = { role: "user", content: msg };
+      setMessages((prev) => [...prev, userMsg]);
+      setLoading(true);
+      setStreamingContent("");
+
+      streamChatMessage(
+        msg,
+        messages.map((m) => ({ role: m.role, content: m.content })),
+        {
+          onToken: (token) => setStreamingContent((s) => s + token),
+          onDone: (newHistory) => {
+            setMessages(
+              newHistory.map((m) => ({ role: m.role as "user" | "model", content: m.content }))
+            );
+            setStreamingContent("");
+            setLoading(false);
+          },
+          onError: (err) => {
+            setMessages((prev) => [
+              ...prev,
+              { role: "model", content: `Error: ${err}` },
+            ]);
+            setStreamingContent("");
+            setLoading(false);
+          },
+        }
+      );
+    },
+    [messages, loading]
+  );
+
+  const hasMessages = messages.length > 0;
+
+  const startNewChat = useCallback(() => {
+    setMessages([]);
+    setStreamingContent("");
+    setInput("");
+  }, []);
+
+  return (
+    <div className="gradient-bg min-h-screen flex flex-col">
+      <header className="flex-shrink-0 relative">
+        <HeroHeader compact={hasMessages} />
+        {hasMessages && (
+          <button
+            type="button"
+            onClick={startNewChat}
+            className="absolute top-4 right-4 text-sm text-[#5eead4]/90 hover:text-[#5eead4] border border-[#5eead4]/30 hover:border-[#5eead4]/50 rounded-lg px-3 py-1.5 transition-colors"
+          >
+            New chat
+          </button>
+        )}
+      </header>
+
+      <main className="flex-1 flex flex-col max-w-3xl w-full mx-auto px-4 pb-6">
+        {hasMessages || streaming ? (
+          <div className="flex-1 overflow-y-auto pt-2">
+            <MessageList messages={messages} streamingContent={streaming} />
+            <div ref={listEndRef} />
+          </div>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center gap-8 pt-4">
+            <div className="w-full max-w-2xl">
+              <ChatInput
+                value={input}
+                onChange={setInput}
+                onSubmit={() => sendMessage(input)}
+                disabled={loading}
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl">
+              {SUGGESTIONS.map((label, i) => (
+                <PromptCard
+                  key={i}
+                  label={label}
+                  icon={[ICONS.trophy, ICONS.bar, ICONS.people, ICONS.trend][i]}
+                  onClick={() => sendMessage(label)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {(hasMessages || streaming) && (
+          <div className="flex-shrink-0 pt-4">
+            <ChatInput
+              value={input}
+              onChange={setInput}
+              onSubmit={() => sendMessage(input)}
+              disabled={loading}
+            />
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
