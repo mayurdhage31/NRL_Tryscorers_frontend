@@ -7,6 +7,9 @@ import HeroHeader from "./HeroHeader";
 import ChatInput from "./ChatInput";
 import MessageList from "./MessageList";
 import PromptCard from "./PromptCard";
+import PlayerStatsSection from "./PlayerStatsSection";
+
+type TabId = "chatbot" | "player-stats";
 
 const SUGGESTIONS = [
   "David Fifita try scoring stats?",
@@ -39,6 +42,7 @@ const ICONS = {
 };
 
 export default function ChatShell() {
+  const [activeTab, setActiveTab] = useState<TabId>("chatbot");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreamingContent] = useState("");
@@ -100,8 +104,8 @@ export default function ChatShell() {
   return (
     <div className="gradient-bg min-h-screen flex flex-col">
       <header className="flex-shrink-0 relative">
-        <HeroHeader compact={hasMessages} />
-        {hasMessages && (
+        <HeroHeader compact={activeTab === "chatbot" && hasMessages} />
+        {activeTab === "chatbot" && hasMessages && (
           <button
             type="button"
             onClick={startNewChat}
@@ -112,43 +116,105 @@ export default function ChatShell() {
         )}
       </header>
 
-      <main className="flex-1 flex flex-col max-w-3xl w-full mx-auto px-4 pb-6">
-        {hasMessages || streaming ? (
-          <div className="flex-1 overflow-y-auto pt-2">
-            <MessageList messages={messages} streamingContent={streaming} />
-            <div ref={listEndRef} />
-          </div>
-        ) : (
-          <div className="flex-1 flex flex-col items-center justify-center gap-8 pt-4">
-            <div className="w-full max-w-2xl">
-              <ChatInput
-                value={input}
-                onChange={setInput}
-                onSubmit={() => sendMessage(input)}
-                disabled={loading}
-              />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl">
-              {SUGGESTIONS.map((label, i) => (
-                <PromptCard
-                  key={i}
-                  label={label}
-                  icon={[ICONS.trophy, ICONS.bar, ICONS.people, ICONS.trend][i]}
-                  onClick={() => sendMessage(label)}
+      {/* Tab bar */}
+      <div className="flex-shrink-0 flex justify-center px-4 pt-2 pb-1">
+        <div
+          role="tablist"
+          aria-label="Main navigation"
+          className="inline-flex rounded-xl bg-slate-800/60 border border-slate-600/50 p-1 gap-0.5"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "chatbot"}
+            aria-controls="chatbot-panel"
+            id="chatbot-tab"
+            onClick={() => setActiveTab("chatbot")}
+            className={`rounded-lg px-5 py-2.5 text-sm font-medium transition-all ${
+              activeTab === "chatbot"
+                ? "bg-[#5eead4]/15 text-[#5eead4] border border-[#5eead4]/40 shadow-[0_0_12px_-2px_rgba(94,234,212,0.3)]"
+                : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/40 border border-transparent"
+            }`}
+          >
+            Chatbot
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "player-stats"}
+            aria-controls="player-stats-panel"
+            id="player-stats-tab"
+            onClick={() => setActiveTab("player-stats")}
+            className={`rounded-lg px-5 py-2.5 text-sm font-medium transition-all ${
+              activeTab === "player-stats"
+                ? "bg-[#5eead4]/15 text-[#5eead4] border border-[#5eead4]/40 shadow-[0_0_12px_-2px_rgba(94,234,212,0.3)]"
+                : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/40 border border-transparent"
+            }`}
+          >
+            Player Stats
+          </button>
+        </div>
+      </div>
+
+      <main className="flex-1 flex flex-col max-w-4xl w-full mx-auto px-4 pb-6">
+        {/* Chatbot tab: only chat interface */}
+        {activeTab === "chatbot" && (
+          <div
+            id="chatbot-panel"
+            role="tabpanel"
+            aria-labelledby="chatbot-tab"
+            className="flex-1 flex flex-col min-h-0"
+          >
+            {hasMessages || streaming ? (
+              <div className="flex-1 overflow-y-auto pt-2">
+                <MessageList messages={messages} streamingContent={streaming} />
+                <div ref={listEndRef} />
+              </div>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center gap-8 pt-4">
+                <div className="w-full max-w-2xl">
+                  <ChatInput
+                    value={input}
+                    onChange={setInput}
+                    onSubmit={() => sendMessage(input)}
+                    disabled={loading}
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl">
+                  {SUGGESTIONS.map((label, i) => (
+                    <PromptCard
+                      key={i}
+                      label={label}
+                      icon={[ICONS.trophy, ICONS.bar, ICONS.people, ICONS.trend][i]}
+                      onClick={() => sendMessage(label)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {(hasMessages || streaming) && (
+              <div className="flex-shrink-0 pt-4">
+                <ChatInput
+                  value={input}
+                  onChange={setInput}
+                  onSubmit={() => sendMessage(input)}
+                  disabled={loading}
                 />
-              ))}
-            </div>
+              </div>
+            )}
           </div>
         )}
 
-        {(hasMessages || streaming) && (
-          <div className="flex-shrink-0 pt-4">
-            <ChatInput
-              value={input}
-              onChange={setInput}
-              onSubmit={() => sendMessage(input)}
-              disabled={loading}
-            />
+        {/* Player Stats tab: only player dropdown + table */}
+        {activeTab === "player-stats" && (
+          <div
+            id="player-stats-panel"
+            role="tabpanel"
+            aria-labelledby="player-stats-tab"
+            className="flex-1 pt-2 min-h-0"
+          >
+            <PlayerStatsSection />
           </div>
         )}
       </main>

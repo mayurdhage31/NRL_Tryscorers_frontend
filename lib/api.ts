@@ -27,6 +27,34 @@ export async function sendChatMessage(
   });
 }
 
+export interface PlayerOption {
+  player_id: number;
+  name: string;
+}
+
+export interface PlayerSeasonRow {
+  season: number;
+  games_played: number;
+  fts: number;
+  fts_historical_odds: number | null;
+  ats: number;
+  ats_historical_odds: number | null;
+  lts: number;
+  lts_historical_odds: number | null;
+  fts2h: number;
+  fts2h_historical_odds: number | null;
+  two_plus: number;
+  two_plus_historical_odds: number | null;
+}
+
+export async function getPlayers(): Promise<PlayerOption[]> {
+  return fetchAPI("/api/players");
+}
+
+export async function getPlayerSeasons(playerId: number): Promise<PlayerSeasonRow[]> {
+  return fetchAPI(`/api/players/${playerId}/seasons`);
+}
+
 export async function streamChatMessage(
   message: string,
   history: { role: string; content: string }[],
