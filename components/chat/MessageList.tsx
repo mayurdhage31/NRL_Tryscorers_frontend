@@ -22,7 +22,13 @@ export default function MessageList({ messages, streamingContent }: MessageListP
                 : "bg-slate-800/60 text-slate-200 border border-slate-600/50"
             }`}
           >
-            <p className="text-sm sm:text-base whitespace-pre-wrap break-words">
+            <p
+              className={`text-sm sm:text-base break-words ${
+                m.role === "user"
+                  ? "whitespace-pre-wrap"
+                  : "whitespace-pre-line leading-snug"
+              }`}
+            >
               {m.content}
             </p>
           </div>
@@ -31,7 +37,7 @@ export default function MessageList({ messages, streamingContent }: MessageListP
       {streamingContent && (
         <div className="flex justify-start">
           <div className="max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-3 bg-slate-800/60 text-slate-200 border border-slate-600/50">
-            <p className="text-sm sm:text-base whitespace-pre-wrap break-words">
+            <p className="text-sm sm:text-base break-words whitespace-pre-line leading-snug">
               {streamingContent}
               <span className="inline-block w-2 h-4 bg-[#5eead4] animate-pulse ml-0.5 align-middle" />
             </p>
