@@ -80,9 +80,17 @@ export default function ChatShell() {
             setLoading(false);
           },
           onError: (err) => {
+            let display = err;
+            if (typeof window !== "undefined" && err === "Failed to fetch") {
+              const isProduction = !/localhost|127\.0\.0\.1/.test(window.location.hostname);
+              if (isProduction) {
+                display =
+                  "Cannot reach API. Set NEXT_PUBLIC_API_URL to your backend URL in Vercel and ensure the backend allows CORS from this site.";
+              }
+            }
             setMessages((prev) => [
               ...prev,
-              { role: "model", content: `Error: ${err}` },
+              { role: "model", content: `Error: ${display}` },
             ]);
             setStreamingContent("");
             setLoading(false);

@@ -16,12 +16,21 @@ export default function PlayerStatsSection() {
   const [loadingSeasons, setLoadingSeasons] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  function formatApiError(e: unknown, fallback = "Failed to load players"): string {
+    const msg = e instanceof Error ? e.message : fallback;
+    if (typeof window !== "undefined" && msg === "Failed to fetch") {
+      const isProduction = !/localhost|127\.0\.0\.1/.test(window.location.hostname);
+      if (isProduction) {
+        return "Cannot reach API. Set NEXT_PUBLIC_API_URL to your backend URL in Vercel and ensure the backend allows CORS from this site.";
+      }
+    }
+    return msg;
+  }
+
   useEffect(() => {
     getPlayers()
       .then(setPlayers)
-      .catch((e) => {
-        setError(e instanceof Error ? e.message : "Failed to load players");
-      })
+      .catch((e) => setError(formatApiError(e)))
       .finally(() => setLoadingPlayers(false));
   }, []);
 
@@ -35,7 +44,7 @@ export default function PlayerStatsSection() {
     getPlayerSeasons(selectedId as number)
       .then(setSeasons)
       .catch((e) => {
-        setError(e instanceof Error ? e.message : "Failed to load seasons");
+        setError(formatApiError(e, "Failed to load seasons"));
         setSeasons([]);
       })
       .finally(() => setLoadingSeasons(false));
