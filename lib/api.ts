@@ -32,27 +32,52 @@ export interface PlayerOption {
   name: string;
 }
 
+/** A per-season row returned by /api/players/{id}/seasons. season = "Total" for the aggregate row. */
 export interface PlayerSeasonRow {
-  season: number;
+  season: number | string;
+  position: string;
+  minutes_band: string;
   games_played: number;
   fts: number;
   fts_historical_odds: number | null;
+  fts_odds_fmt: string;
   ats: number;
   ats_historical_odds: number | null;
+  ats_odds_fmt: string;
   lts: number;
   lts_historical_odds: number | null;
+  lts_odds_fmt: string;
   fts2h: number;
   fts2h_historical_odds: number | null;
+  fts2h_odds_fmt: string;
   two_plus: number;
   two_plus_historical_odds: number | null;
+  two_plus_odds_fmt: string;
 }
 
 export async function getPlayers(): Promise<PlayerOption[]> {
   return fetchAPI("/api/players");
 }
 
-export async function getPlayerSeasons(playerId: number): Promise<PlayerSeasonRow[]> {
-  return fetchAPI(`/api/players/${playerId}/seasons`);
+export async function getPlayerPositions(playerId: number): Promise<string[]> {
+  const res = await fetchAPI<{ positions: string[] }>(`/api/players/${playerId}/positions`);
+  return res.positions;
+}
+
+export async function getPlayerSeasons(
+  playerId: number,
+  opts?: {
+    minutesBand?: string;
+    positions?: string[];
+  }
+): Promise<PlayerSeasonRow[]> {
+  const params = new URLSearchParams();
+  if (opts?.minutesBand) params.set("minutes_band", opts.minutesBand);
+  if (opts?.positions && opts.positions.length > 0) {
+    for (const p of opts.positions) params.append("positions", p);
+  }
+  const qs = params.toString();
+  return fetchAPI(`/api/players/${playerId}/seasons${qs ? `?${qs}` : ""}`);
 }
 
 export async function streamChatMessage(
