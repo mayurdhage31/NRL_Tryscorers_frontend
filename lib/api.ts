@@ -68,12 +68,14 @@ export async function getPlayerPositions(playerId: number): Promise<string[]> {
 export async function getPlayerSeasons(
   playerId: number,
   opts?: {
-    minutesBand?: string;
+    minutesBands?: string[];
     positions?: string[];
   }
 ): Promise<PlayerSeasonRow[]> {
   const params = new URLSearchParams();
-  if (opts?.minutesBand) params.set("minutes_band", opts.minutesBand);
+  if (opts?.minutesBands && opts.minutesBands.length > 0) {
+    for (const b of opts.minutesBands) params.append("minutes_band", b);
+  }
   if (opts?.positions && opts.positions.length > 0) {
     for (const p of opts.positions) params.append("positions", p);
   }

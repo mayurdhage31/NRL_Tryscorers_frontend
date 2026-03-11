@@ -42,7 +42,7 @@ export default function PlayerStatsSection() {
   const [error, setError] = useState<string | null>(null);
 
   // Filters
-  const [minutesBand, setMinutesBand] = useState<string>("Over 20 mins");
+  const [selectedMinutesBands, setSelectedMinutesBands] = useState<string[]>(["Over 20 mins"]);
   const [availablePositions, setAvailablePositions] = useState<string[]>([]);
   const [selectedPositions, setSelectedPositions] = useState<string[]>([]);
 
@@ -91,7 +91,7 @@ export default function PlayerStatsSection() {
       .finally(() => setLoadingPositions(false));
   }, [selectedId]);
 
-  // Fetch seasons whenever player, minutesBand, or selectedPositions changes
+  // Fetch seasons whenever player, selectedMinutesBands, or selectedPositions changes
   useEffect(() => {
     if (selectedId === "") return;
     // Wait until positions have been fetched for this player before re-fetching
@@ -100,7 +100,7 @@ export default function PlayerStatsSection() {
     setLoadingSeasons(true);
     setError(null);
     getPlayerSeasons(selectedId as number, {
-      minutesBand,
+      minutesBands: selectedMinutesBands,
       positions: selectedPositions,
     })
       .then((rows) => {
@@ -117,7 +117,7 @@ export default function PlayerStatsSection() {
         setAllRows([]);
       })
       .finally(() => setLoadingSeasons(false));
-  }, [selectedId, minutesBand, selectedPositions, loadingPositions]);
+  }, [selectedId, selectedMinutesBands, selectedPositions, loadingPositions]);
 
   // Separate the Total row from per-season rows
   const totalRow = useMemo(
@@ -196,6 +196,12 @@ export default function PlayerStatsSection() {
     );
   }
 
+  function toggleMinutesBand(band: string) {
+    setSelectedMinutesBands((prev) =>
+      prev.includes(band) ? prev.filter((b) => b !== band) : [...prev, band]
+    );
+  }
+
   function togglePosition(pos: string) {
     setSelectedPositions((prev) =>
       prev.includes(pos) ? prev.filter((p) => p !== pos) : [...prev, pos]
@@ -224,7 +230,7 @@ export default function PlayerStatsSection() {
             value={selectedId === "" ? "" : selectedId}
             onChange={(e) => {
               setSelectedId(e.target.value === "" ? "" : Number(e.target.value));
-              setMinutesBand("Over 20 mins");
+              setSelectedMinutesBands(["Over 20 mins"]);
             }}
             disabled={loadingPlayers}
             className="w-full max-w-sm rounded-lg bg-slate-700/80 border border-slate-500/50 text-slate-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#5eead4]/50 focus:border-[#5eead4]/40"
@@ -238,18 +244,34 @@ export default function PlayerStatsSection() {
           </select>
         </div>
 
-        {/* Minutes band filter — checkboxes, single-select (bands are nested subsets) */}
+        {/* Minutes band filter — multi-select checkboxes */}
         {selectedId !== "" && (
           <div className="px-4 py-2 border-b border-slate-600/40 bg-slate-800/60">
-            <div className="text-xs font-medium text-slate-300 mb-1">Minutes played</div>
+            <div className="flex items-center gap-3 mb-1">
+              <span className="text-xs font-medium text-slate-300">Minutes played</span>
+              <button
+                type="button"
+                onClick={() => setSelectedMinutesBands([...MINUTES_BANDS])}
+                className="text-xs text-[#5eead4]/70 hover:text-[#5eead4] transition-colors"
+              >
+                All
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedMinutesBands([])}
+                className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                None
+              </button>
+            </div>
             <div className="flex flex-wrap gap-3 text-xs text-slate-200">
               {MINUTES_BANDS.map((band) => (
                 <label key={band} className="inline-flex items-center gap-1.5 cursor-pointer">
                   <input
                     type="checkbox"
                     className="rounded border-slate-500 bg-slate-800 text-[#5eead4] focus:ring-[#5eead4]"
-                    checked={minutesBand === band}
-                    onChange={() => setMinutesBand(band)}
+                    checked={selectedMinutesBands.includes(band)}
+                    onChange={() => toggleMinutesBand(band)}
                   />
                   <span>{band}</span>
                 </label>
