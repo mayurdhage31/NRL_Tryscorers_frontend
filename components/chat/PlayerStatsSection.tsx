@@ -10,6 +10,7 @@ import {
 } from "@/lib/api";
 
 const MINUTES_BANDS = [
+  "Less than 20 mins",
   "Over 20 mins",
   "Over 30 mins",
   "Over 40 mins",
@@ -54,7 +55,7 @@ export default function PlayerStatsSection() {
   const [selectedYears, setSelectedYears] = useState<number[]>([]);
 
   // Sort
-  type SortKey = "season" | "games_played" | "fts" | "fts_historical_odds" | "ats" | "ats_historical_odds" | "lts" | "lts_historical_odds" | "fts2h" | "fts2h_historical_odds" | "two_plus" | "two_plus_historical_odds";
+  type SortKey = "season" | "games_played" | "total_games_played" | "fts" | "fts_historical_odds" | "ats" | "ats_historical_odds" | "lts" | "lts_historical_odds" | "fts2h" | "fts2h_historical_odds" | "two_plus" | "two_plus_historical_odds";
   const [sortKey, setSortKey] = useState<SortKey>("season");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
@@ -162,6 +163,7 @@ export default function PlayerStatsSection() {
     const t = sortedRows.reduce(
       (acc, row) => {
         acc.games_played += row.games_played;
+        acc.total_games_played += (row.total_games_played ?? 0);
         acc.fts += row.fts;
         acc.ats += row.ats;
         acc.lts += row.lts;
@@ -169,7 +171,7 @@ export default function PlayerStatsSection() {
         acc.two_plus += row.two_plus;
         return acc;
       },
-      { games_played: 0, fts: 0, ats: 0, lts: 0, fts2h: 0, two_plus: 0 }
+      { games_played: 0, total_games_played: 0, fts: 0, ats: 0, lts: 0, fts2h: 0, two_plus: 0 }
     );
     const gp = t.games_played;
     const odds = (hits: number) => (gp && hits ? gp / hits : null);
@@ -236,24 +238,21 @@ export default function PlayerStatsSection() {
           </select>
         </div>
 
-        {/* Minutes band filter */}
+        {/* Minutes band filter — checkboxes, single-select (bands are nested subsets) */}
         {selectedId !== "" && (
           <div className="px-4 py-2 border-b border-slate-600/40 bg-slate-800/60">
             <div className="text-xs font-medium text-slate-300 mb-1">Minutes played</div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-3 text-xs text-slate-200">
               {MINUTES_BANDS.map((band) => (
-                <button
-                  key={band}
-                  type="button"
-                  onClick={() => setMinutesBand(band)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                    minutesBand === band
-                      ? "bg-[#5eead4]/20 text-[#5eead4] border border-[#5eead4]/40"
-                      : "bg-slate-700/60 text-slate-400 border border-slate-600/40 hover:text-slate-200 hover:bg-slate-600/60"
-                  }`}
-                >
-                  {band}
-                </button>
+                <label key={band} className="inline-flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="rounded border-slate-500 bg-slate-800 text-[#5eead4] focus:ring-[#5eead4]"
+                    checked={minutesBand === band}
+                    onChange={() => setMinutesBand(band)}
+                  />
+                  <span>{band}</span>
+                </label>
               ))}
             </div>
           </div>
@@ -337,6 +336,7 @@ export default function PlayerStatsSection() {
                     [
                       ["season", "Season"],
                       ["games_played", "Games"],
+                      ["total_games_played", "Total Games"],
                       ["fts", "FTS"],
                       ["fts_historical_odds", "FTS odds"],
                       ["ats", "ATS"],
@@ -370,6 +370,7 @@ export default function PlayerStatsSection() {
                   >
                     <td className="px-3 py-2 text-slate-100 font-medium">{row.season}</td>
                     <td className="px-3 py-2 text-slate-200">{row.games_played}</td>
+                    <td className="px-3 py-2 text-slate-400">{row.total_games_played ?? "—"}</td>
                     <td className="px-3 py-2 text-slate-200">{row.fts}</td>
                     <td className="px-3 py-2 text-slate-300 tabular-nums">{row.fts_odds_fmt}</td>
                     <td className="px-3 py-2 text-slate-200">{row.ats}</td>
@@ -386,6 +387,7 @@ export default function PlayerStatsSection() {
                   <tr className="border-t border-slate-500/60 bg-slate-800/80">
                     <td className="px-3 py-2 text-slate-100 font-semibold">Total</td>
                     <td className="px-3 py-2 text-slate-100 font-semibold">{clientTotals.games_played}</td>
+                    <td className="px-3 py-2 text-slate-300 font-semibold">{clientTotals.total_games_played || "—"}</td>
                     <td className="px-3 py-2 text-slate-100 font-semibold">{clientTotals.fts}</td>
                     <td className="px-3 py-2 text-slate-100 font-semibold tabular-nums">{formatOdds(clientTotals.fts_historical_odds)}</td>
                     <td className="px-3 py-2 text-slate-100 font-semibold">{clientTotals.ats}</td>

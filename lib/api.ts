@@ -38,6 +38,7 @@ export interface PlayerSeasonRow {
   position: string;
   minutes_band: string;
   games_played: number;
+  total_games_played: number;
   fts: number;
   fts_historical_odds: number | null;
   fts_odds_fmt: string;
