@@ -12,10 +12,10 @@ import PlayerStatsSection from "./PlayerStatsSection";
 type TabId = "chatbot" | "player-stats";
 
 const SUGGESTIONS = [
-  "David Fifita try scoring stats?",
-  "Nathan Cleary ATS since 2023?",
-  "Top 5 edge forwards for LTS since 2022 with minimum 30 games played since then and minimum 1 game played since 2024?",
-  "Is $17 for Payne Haas FTS value & how much?",
+  "Alex Johnston stats?",
+  "Best FTS price for Payne Haas and is it a good bet?",
+  "Top 5 FTS wingers since 2022?",
+  "Best value ATS bets this round?",
 ];
 
 const ICONS = {
