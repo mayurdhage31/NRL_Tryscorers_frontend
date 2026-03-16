@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   getPlayers,
   getPlayerSeasons,
@@ -35,14 +35,110 @@ function formatApiError(e: unknown, fallback = "Failed to load"): string {
   return msg;
 }
 
+// Reusable multi-select dropdown component
+function MultiSelectDropdown({
+  label,
+  options,
+  selected,
+  onToggle,
+  onSelectAll,
+  onClearAll,
+}: {
+  label: string;
+  options: string[];
+  selected: string[];
+  onToggle: (val: string) => void;
+  onSelectAll: () => void;
+  onClearAll: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const summaryText =
+    selected.length === 0
+      ? "None"
+      : selected.length === options.length
+      ? "All"
+      : selected.length === 1
+      ? selected[0]
+      : `${selected.length} selected`;
+
+  return (
+    <div className="relative" ref={ref}>
+      <span className="text-xs font-medium text-slate-300 mr-2">{label}</span>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex items-center gap-1.5 rounded-lg bg-slate-700/80 border border-slate-500/50 text-slate-200 px-3 py-1.5 text-xs hover:border-[#5eead4]/40 focus:outline-none focus:ring-1 focus:ring-[#5eead4]/50 transition-colors"
+      >
+        <span>{summaryText}</span>
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
+          className={`transition-transform ${open ? "rotate-180" : ""}`}
+        >
+          <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute z-20 mt-1 min-w-[160px] rounded-lg bg-slate-800 border border-slate-600/60 shadow-xl py-1">
+          <div className="flex gap-3 px-3 py-1.5 border-b border-slate-600/40">
+            <button
+              type="button"
+              onClick={() => { onSelectAll(); setOpen(false); }}
+              className="text-xs text-[#5eead4]/80 hover:text-[#5eead4] transition-colors"
+            >
+              All
+            </button>
+            <button
+              type="button"
+              onClick={() => { onClearAll(); setOpen(false); }}
+              className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+            >
+              None
+            </button>
+          </div>
+          {options.map((opt) => (
+            <label
+              key={opt}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-700/50 cursor-pointer transition-colors"
+            >
+              <input
+                type="checkbox"
+                className="rounded border-slate-500 bg-slate-800 text-[#5eead4] focus:ring-[#5eead4]"
+                checked={selected.includes(opt)}
+                onChange={() => onToggle(opt)}
+              />
+              {opt}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function PlayerStatsSection() {
   const [players, setPlayers] = useState<PlayerOption[]>([]);
   const [selectedId, setSelectedId] = useState<number | "">("");
   const [loadingPlayers, setLoadingPlayers] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Filters
-  const [selectedMinutesBands, setSelectedMinutesBands] = useState<string[]>(["Over 20 mins"]);
+  // Filters — minutes is now single-select
+  const [selectedMinutesBand, setSelectedMinutesBand] = useState<string>("Over 20 mins");
   const [availablePositions, setAvailablePositions] = useState<string[]>([]);
   const [selectedPositions, setSelectedPositions] = useState<string[]>([]);
 
@@ -55,7 +151,7 @@ export default function PlayerStatsSection() {
   const [selectedYears, setSelectedYears] = useState<number[]>([]);
 
   // Sort
-  type SortKey = "season" | "games_played" | "total_games_played" | "fts" | "fts_historical_odds" | "ats" | "ats_historical_odds" | "lts" | "lts_historical_odds" | "fts2h" | "fts2h_historical_odds" | "two_plus" | "two_plus_historical_odds";
+  type SortKey = "season" | "games_played" | "fts" | "fts_historical_odds" | "ats" | "ats_historical_odds" | "lts" | "lts_historical_odds" | "fts2h" | "fts2h_historical_odds" | "two_plus" | "two_plus_historical_odds";
   const [sortKey, setSortKey] = useState<SortKey>("season");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
@@ -82,7 +178,7 @@ export default function PlayerStatsSection() {
     getPlayerPositions(selectedId as number)
       .then((pos) => {
         setAvailablePositions(pos);
-        setSelectedPositions(pos); // default: all positions checked
+        setSelectedPositions(pos);
       })
       .catch(() => {
         setAvailablePositions([]);
@@ -91,21 +187,19 @@ export default function PlayerStatsSection() {
       .finally(() => setLoadingPositions(false));
   }, [selectedId]);
 
-  // Fetch seasons whenever player, selectedMinutesBands, or selectedPositions changes
+  // Fetch seasons whenever player, selectedMinutesBand, or selectedPositions changes
   useEffect(() => {
     if (selectedId === "") return;
-    // Wait until positions have been fetched for this player before re-fetching
     if (loadingPositions) return;
 
     setLoadingSeasons(true);
     setError(null);
     getPlayerSeasons(selectedId as number, {
-      minutesBands: selectedMinutesBands,
+      minutesBands: [selectedMinutesBand],
       positions: selectedPositions,
     })
       .then((rows) => {
         setAllRows(rows);
-        // Reset year filter to all available years
         const years = rows
           .filter((r) => typeof r.season === "number")
           .map((r) => r.season as number)
@@ -117,13 +211,9 @@ export default function PlayerStatsSection() {
         setAllRows([]);
       })
       .finally(() => setLoadingSeasons(false));
-  }, [selectedId, selectedMinutesBands, selectedPositions, loadingPositions]);
+  }, [selectedId, selectedMinutesBand, selectedPositions, loadingPositions]);
 
   // Separate the Total row from per-season rows
-  const totalRow = useMemo(
-    () => allRows.find((r) => r.season === "Total") ?? null,
-    [allRows]
-  );
   const seasonRows = useMemo(
     () => allRows.filter((r) => r.season !== "Total"),
     [allRows]
@@ -196,12 +286,6 @@ export default function PlayerStatsSection() {
     );
   }
 
-  function toggleMinutesBand(band: string) {
-    setSelectedMinutesBands((prev) =>
-      prev.includes(band) ? prev.filter((b) => b !== band) : [...prev, band]
-    );
-  }
-
   function togglePosition(pos: string) {
     setSelectedPositions((prev) =>
       prev.includes(pos) ? prev.filter((p) => p !== pos) : [...prev, pos]
@@ -230,7 +314,7 @@ export default function PlayerStatsSection() {
             value={selectedId === "" ? "" : selectedId}
             onChange={(e) => {
               setSelectedId(e.target.value === "" ? "" : Number(e.target.value));
-              setSelectedMinutesBands(["Over 20 mins"]);
+              setSelectedMinutesBand("Over 20 mins");
             }}
             disabled={loadingPlayers}
             className="w-full max-w-sm rounded-lg bg-slate-700/80 border border-slate-500/50 text-slate-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#5eead4]/50 focus:border-[#5eead4]/40"
@@ -244,95 +328,55 @@ export default function PlayerStatsSection() {
           </select>
         </div>
 
-        {/* Minutes band filter — multi-select checkboxes */}
+        {/* Filter bar */}
         {selectedId !== "" && (
-          <div className="px-4 py-2 border-b border-slate-600/40 bg-slate-800/60">
-            <div className="flex items-center gap-3 mb-1">
-              <span className="text-xs font-medium text-slate-300">Minutes played</span>
-              <button
-                type="button"
-                onClick={() => setSelectedMinutesBands([...MINUTES_BANDS])}
-                className="text-xs text-[#5eead4]/70 hover:text-[#5eead4] transition-colors"
-              >
-                All
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedMinutesBands([])}
-                className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
-              >
-                None
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-3 text-xs text-slate-200">
-              {MINUTES_BANDS.map((band) => (
-                <label key={band} className="inline-flex items-center gap-1.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="rounded border-slate-500 bg-slate-800 text-[#5eead4] focus:ring-[#5eead4]"
-                    checked={selectedMinutesBands.includes(band)}
-                    onChange={() => toggleMinutesBand(band)}
-                  />
-                  <span>{band}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-        )}
+          <div className="px-4 py-2.5 border-b border-slate-600/40 bg-slate-800/60 flex flex-wrap items-center gap-4">
 
-        {/* Position checkboxes */}
-        {selectedId !== "" && availablePositions.length > 0 && (
-          <div className="px-4 py-2 border-b border-slate-600/40 bg-slate-800/60">
-            <div className="flex items-center gap-3 mb-1">
-              <span className="text-xs font-medium text-slate-300">Filter by position</span>
-              <button
-                type="button"
-                onClick={() => setSelectedPositions(availablePositions)}
-                className="text-xs text-[#5eead4]/70 hover:text-[#5eead4] transition-colors"
+            {/* Minutes played — single-select dropdown */}
+            <div className="flex items-center gap-2">
+              <label
+                htmlFor="minutes-select"
+                className="text-xs font-medium text-slate-300 whitespace-nowrap"
               >
-                All
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedPositions([])}
-                className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                Minutes Over
+              </label>
+              <select
+                id="minutes-select"
+                value={selectedMinutesBand}
+                onChange={(e) => setSelectedMinutesBand(e.target.value)}
+                className="rounded-lg bg-slate-700/80 border border-slate-500/50 text-slate-200 px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#5eead4]/50 focus:border-[#5eead4]/40 hover:border-[#5eead4]/30 transition-colors"
               >
-                None
-              </button>
+                {MINUTES_BANDS.map((band) => (
+                  <option key={band} value={band}>
+                    {band}
+                  </option>
+                ))}
+              </select>
             </div>
-            <div className="flex flex-wrap gap-3 text-xs text-slate-200">
-              {availablePositions.map((pos) => (
-                <label key={pos} className="inline-flex items-center gap-1.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="rounded border-slate-500 bg-slate-800 text-[#5eead4] focus:ring-[#5eead4]"
-                    checked={selectedPositions.includes(pos)}
-                    onChange={() => togglePosition(pos)}
-                  />
-                  <span>{pos}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-        )}
 
-        {/* Season checkboxes */}
-        {hasData && availableYears.length > 0 && (
-          <div className="px-4 py-2 border-b border-slate-600/40 bg-slate-800/60">
-            <div className="text-xs font-medium text-slate-300 mb-1">Filter by season</div>
-            <div className="flex flex-wrap gap-3 text-xs text-slate-200">
-              {availableYears.map((year) => (
-                <label key={year} className="inline-flex items-center gap-1 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="rounded border-slate-500 bg-slate-800 text-[#5eead4] focus:ring-[#5eead4]"
-                    checked={selectedYears.includes(year)}
-                    onChange={() => toggleYear(year)}
-                  />
-                  <span>{year}</span>
-                </label>
-              ))}
-            </div>
+            {/* Position — multi-select dropdown */}
+            {availablePositions.length > 0 && (
+              <MultiSelectDropdown
+                label="Position"
+                options={availablePositions}
+                selected={selectedPositions}
+                onToggle={togglePosition}
+                onSelectAll={() => setSelectedPositions(availablePositions)}
+                onClearAll={() => setSelectedPositions([])}
+              />
+            )}
+
+            {/* Season — multi-select dropdown */}
+            {hasData && availableYears.length > 0 && (
+              <MultiSelectDropdown
+                label="Season"
+                options={availableYears.map(String)}
+                selected={selectedYears.map(String)}
+                onToggle={(val) => toggleYear(Number(val))}
+                onSelectAll={() => setSelectedYears(availableYears)}
+                onClearAll={() => setSelectedYears([])}
+              />
+            )}
           </div>
         )}
 
@@ -357,8 +401,7 @@ export default function PlayerStatsSection() {
                   {(
                     [
                       ["season", "Season"],
-                      ["games_played", "Games"],
-                      ["total_games_played", "Total Games"],
+                      ["games_played", "GP"],
                       ["fts", "FTS"],
                       ["fts_historical_odds", "FTS odds"],
                       ["ats", "ATS"],
@@ -391,8 +434,11 @@ export default function PlayerStatsSection() {
                     } hover:bg-slate-600/20 transition-colors`}
                   >
                     <td className="px-3 py-2 text-slate-100 font-medium">{row.season}</td>
-                    <td className="px-3 py-2 text-slate-200">{row.games_played}</td>
-                    <td className="px-3 py-2 text-slate-400">{row.total_games_played ?? "—"}</td>
+                    <td className="px-3 py-2 text-slate-200 tabular-nums whitespace-nowrap">
+                      {row.total_games_played != null
+                        ? `${row.games_played}/${row.total_games_played}`
+                        : row.games_played}
+                    </td>
                     <td className="px-3 py-2 text-slate-200">{row.fts}</td>
                     <td className="px-3 py-2 text-slate-300 tabular-nums">{row.fts_odds_fmt}</td>
                     <td className="px-3 py-2 text-slate-200">{row.ats}</td>
@@ -408,8 +454,11 @@ export default function PlayerStatsSection() {
                 {clientTotals && (
                   <tr className="border-t border-slate-500/60 bg-slate-800/80">
                     <td className="px-3 py-2 text-slate-100 font-semibold">Total</td>
-                    <td className="px-3 py-2 text-slate-100 font-semibold">{clientTotals.games_played}</td>
-                    <td className="px-3 py-2 text-slate-300 font-semibold">{clientTotals.total_games_played || "—"}</td>
+                    <td className="px-3 py-2 text-slate-100 font-semibold tabular-nums whitespace-nowrap">
+                      {clientTotals.total_games_played
+                        ? `${clientTotals.games_played}/${clientTotals.total_games_played}`
+                        : clientTotals.games_played}
+                    </td>
                     <td className="px-3 py-2 text-slate-100 font-semibold">{clientTotals.fts}</td>
                     <td className="px-3 py-2 text-slate-100 font-semibold tabular-nums">{formatOdds(clientTotals.fts_historical_odds)}</td>
                     <td className="px-3 py-2 text-slate-100 font-semibold">{clientTotals.ats}</td>

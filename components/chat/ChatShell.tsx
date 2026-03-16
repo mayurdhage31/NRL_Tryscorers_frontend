@@ -202,7 +202,21 @@ export default function ChatShell() {
             )}
 
             {(hasMessages || streaming) && (
-              <div className="flex-shrink-0 pt-4">
+              <div className="flex-shrink-0 pt-4 space-y-2">
+                {/* Suggestion chips — always visible after first message */}
+                <div className="flex flex-wrap gap-2">
+                  {SUGGESTIONS.map((label, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      disabled={loading}
+                      onClick={() => sendMessage(label)}
+                      className="text-xs text-slate-300 hover:text-[#5eead4] bg-slate-800/60 hover:bg-slate-700/60 border border-slate-600/50 hover:border-[#5eead4]/40 rounded-full px-3 py-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
                 <ChatInput
                   value={input}
                   onChange={setInput}
